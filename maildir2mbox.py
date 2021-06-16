@@ -23,6 +23,9 @@ import os, sys, argparse, mailbox, datetime
 from typing import Optional
 from  pathlib import Path
 
+DATE_LIMIT = False
+TARGET_DATE = 0
+
 def info(*args):
     # type: (*str) -> None
     '''Display informative message'''
@@ -78,7 +81,11 @@ def maildir2mailbox(maildir_path, mbox_path):
             if (i % 100) == 99:
                 info('Progress: msg %d of %d' % (i+1, mails))
             try:
-                mbox.add(msg)
+                if DATE_LIMIT:
+                    if msg.get_date() >= TARGET_DATE:
+                        mbox.add(msg)
+                else:
+                    mbox.add(msg)
             except Exception:
                 error('Exception while processing msg with key: %s' % key)
                 #traceback.print_exc()
@@ -141,7 +148,7 @@ def convert(maildir_path, mbox_path, recurse):
     maildir_sub_path = [ p for p in maildir_path.parent.iterdir()
                             if p.name != mdp_prefix[:-1] and p.name.startswith(mdp_prefix)
                             ]
-    maildir_sub_path2 = [p for p in maildir_sub_path 
+    maildir_sub_path2 = [p for p in maildir_sub_path
                         if p.is_dir() and (p/'cur').exists() and (p/'new').exists()]
 
     # .INBOX.toto
@@ -171,7 +178,7 @@ def convert(maildir_path, mbox_path, recurse):
     # mbox_toto.sbd/coincoin.sbd/coucou.sbd
     mdp_prefix = maildir_path.parts[-1] + '.'
     maildir_sub_path = [ (Path(dirinfo[0])/subdir).relative_to(maildir_path) for dirinfo in os.walk(str(maildir_path))
-                                        for subdir in dirinfo[1] 
+                                        for subdir in dirinfo[1]
                                             if subdir.startswith('.') ]
     for subdir in maildir_sub_path:
         mbox_dir_sub_path = Path(str(mbox_path) + '.sbd/' + subdir.as_posix()[1:].replace('/.', '.sbd/')+'.sbd')
@@ -197,10 +204,23 @@ if __name__ == '__main__':
     parser.add_argument('mbox_filename',
                         help=("target filename in the mbox format. If the mailbox already exists, new messages are appended to it." ))
     parser.add_argument('-r', '--recurse', dest='recurse', help="Process all mail folders included in maildir_path. An equivalent "
-                        "structure is recreated in the mbox format", 
+                        "structure is recreated in the mbox format",
                         action='store_true')
+    parser.add_argument('-d', '--date', dest='date', help="Timestamp since epoch, in the past, to fetch all mail from. E.g. "
+                        "get mail for the past 6 months ")
     args = parser.parse_args()
 
-    sys.exit(
-        convert(Path(args.maildir_path), Path(args.mbox_filename), bool(args.recurse))
-    )
+    if args.date is None:
+        sys.exit(
+            convert(Path(args.maildir_path), Path(args.mbox_filename), bool(args.recurse))
+        )
+    elif args.date.isnumeric():
+        DATE_LIMIT = True
+        TARGET_DATE = args.date
+        sys.exit(
+            convert(Path(args.maildir_path), Path(args.mbox_filename), bool(args.recurse))
+        )
+    else:
+        sys.exit(
+            parser.print_help(sys.stderr)
+        )

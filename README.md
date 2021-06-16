@@ -28,6 +28,7 @@ To install
 
 Authors
 -------
+- Trimination, 16 June 2021
 - Philippe Fremy, April 2013-2020
 - Frédéric Grosshans, 19 January 2012
 - Nathan R. Yergler, 6 June 2010
